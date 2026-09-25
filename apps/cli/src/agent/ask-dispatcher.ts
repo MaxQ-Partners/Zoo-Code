@@ -31,6 +31,11 @@ import { FOLLOWUP_TIMEOUT_SECONDS } from "@/types/index.js"
 import type { OutputManager } from "./output-manager.js"
 import type { PromptManager } from "./prompt-manager.js"
 
+// MaxQ: the asks that auto-approval settings answer (a followup is a question
+// for the user, not an approval).
+const APPROVAL_ASKS: ReadonlySet<ClineAsk> = new Set<ClineAsk>(["command", "tool", "use_mcp_server"])
+const isApprovalAsk = (ask: ClineAsk): boolean => APPROVAL_ASKS.has(ask)
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -122,6 +127,29 @@ export class AskDispatcher {
 	 * @returns Promise<AskHandleResult>
 	 */
 	async handleAsk(message: ClineMessage): Promise<AskHandleResult> {
+		// MaxQ: in non-interactive mode an approval ask is either already
+		// answered by the auto-approval settings (leave it alone: a second
+		// response could land on the next ask) or not permitted (refuse it).
+		// This runs before the `disabled` check because JSON / stdin-stream
+		// output disables the dispatcher, and then nothing would ever answer
+		// the ask: the task would wait forever instead of being refused.
+		if (
+			this.nonInteractive &&
+			message.type === "ask" &&
+			message.ask &&
+			!message.partial &&
+			isApprovalAsk(message.ask)
+		) {
+			if (this.handledAsks.has(message.ts)) {
+				return { handled: true }
+			}
+			this.handledAsks.add(message.ts)
+			if (message.isAnswered || message.autoApprovalDecision) {
+				return { handled: true }
+			}
+			return this.denyNonInteractive(message.ask)
+		}
+
 		// Disabled in TUI mode - TUI handles asks directly
 		if (this.disabled) {
 			return { handled: false }
@@ -636,6 +664,16 @@ export class AskDispatcher {
 	/**
 	 * Send an approval response (yes/no) to the extension.
 	 */
+	/**
+	 * MaxQ: refuse an approval ask that the auto-approval settings did not
+	 * cover, when there is no human to ask.
+	 */
+	private denyNonInteractive(what: string): AskHandleResult {
+		this.outputManager.output(`[denied: ${what} is not permitted in non-interactive mode]`)
+		this.sendApprovalResponse(false)
+		return { handled: true, response: "noButtonClicked" }
+	}
+
 	private sendApprovalResponse(approved: boolean): void {
 		this.sendMessage({
 			type: "askResponse",

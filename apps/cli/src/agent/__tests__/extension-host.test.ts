@@ -662,7 +662,18 @@ describe("ExtensionHost", () => {
 			expect(initialSettings.autoApprovalEnabled).toBe(true)
 			expect(initialSettings.alwaysAllowReadOnly).toBe(true)
 			expect(initialSettings.alwaysAllowWrite).toBe(true)
-			expect(initialSettings.alwaysAllowExecute).toBe(true)
+		})
+
+		// MaxQ: non-interactive runs are confined to the workspace.
+		it("should confine non-interactive mode to the workspace, with no commands", () => {
+			const host = createTestHost({ nonInteractive: true })
+
+			const initialSettings = getPrivate<Record<string, unknown>>(host, "initialSettings")
+			expect(initialSettings.alwaysAllowReadOnlyOutsideWorkspace).toBe(false)
+			expect(initialSettings.alwaysAllowWriteOutsideWorkspace).toBe(false)
+			expect(initialSettings.alwaysAllowWriteProtected).toBe(false)
+			expect(initialSettings.alwaysAllowExecute).toBe(false)
+			expect(initialSettings.allowedCommands).toEqual([])
 		})
 
 		it("should disable auto-approval in interactive mode", () => {

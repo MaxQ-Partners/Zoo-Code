@@ -230,19 +230,27 @@ export class ExtensionHost extends EventEmitter implements ExtensionHostInterfac
 			...getProviderSettings(this.options.provider, this.options.apiKey, this.options.model),
 		}
 
+		// MaxQ: non-interactive runs are confined to the workspace. With nobody
+		// present to approve anything, the agent may read and write inside the
+		// workspace and use approved MCP tools, but not read or write outside
+		// it, not touch protected config (.roo/*, .rooignore), and not run
+		// commands. Anything these settings do not approve reaches the
+		// AskDispatcher, which answers "no" in non-interactive mode (fail
+		// closed). Puerta runs this CLI for members of the public, so the
+		// agent's own judgement must not be the only boundary.
 		this.initialSettings = this.options.nonInteractive
 			? {
 					autoApprovalEnabled: true,
 					alwaysAllowReadOnly: true,
-					alwaysAllowReadOnlyOutsideWorkspace: true,
+					alwaysAllowReadOnlyOutsideWorkspace: false,
 					alwaysAllowWrite: true,
-					alwaysAllowWriteOutsideWorkspace: true,
-					alwaysAllowWriteProtected: true,
+					alwaysAllowWriteOutsideWorkspace: false,
+					alwaysAllowWriteProtected: false,
 					alwaysAllowMcp: true,
 					alwaysAllowModeSwitch: true,
 					alwaysAllowSubtasks: true,
-					alwaysAllowExecute: true,
-					allowedCommands: ["*"],
+					alwaysAllowExecute: false,
+					allowedCommands: [],
 					...baseSettings,
 				}
 			: {
