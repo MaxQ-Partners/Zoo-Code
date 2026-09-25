@@ -109,6 +109,13 @@ export function createVSCodeAPIMock(
 		shell: process.env.SHELL || "/bin/bash",
 		uriScheme: "vscode",
 		uiKind: 1, // Desktop
+		// CLI has no telemetry toggle UI, so treat it as permanently disabled and
+		// never fire. Needed because extension.ts unconditionally calls this during
+		// activate() (added 2026-08-21, #1069) — without it, activation throws
+		// "vscode.env.onDidChangeTelemetryEnabled is not a function" and the CLI
+		// never becomes ready.
+		isTelemetryEnabled: false,
+		onDidChangeTelemetryEnabled: (_listener: (e: boolean) => void) => ({ dispose: () => {} }),
 		openExternal: async (uri: Uri): Promise<boolean> => {
 			logs.info(`Would open external URL: ${uri.toString()}`, "VSCode.Env")
 			return true
