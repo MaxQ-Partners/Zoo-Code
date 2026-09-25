@@ -61,6 +61,14 @@ describe("AskDispatcher (non-interactive, fail closed)", () => {
 		expect(sendMessage).not.toHaveBeenCalled()
 	})
 
+	it("answers an ask once even when it is delivered twice", async () => {
+		const { dispatcher, sendMessage } = makeDispatcher(true)
+		const message = ask({ ask: "tool", text: '{"tool":"readFile","path":"../x","isOutsideWorkspace":true}' })
+		await dispatcher.handleAsk(message)
+		await dispatcher.handleAsk(message)
+		expect(sendMessage).toHaveBeenCalledTimes(1)
+	})
+
 	it("does not answer a partial ask", async () => {
 		const { dispatcher, sendMessage } = makeDispatcher()
 		const result = await dispatcher.handleAsk(ask({ ask: "tool", text: "{}", partial: true }))

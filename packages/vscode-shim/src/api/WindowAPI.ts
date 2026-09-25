@@ -331,6 +331,13 @@ export class WindowAPI {
 		return this._onDidChangeVisibleTextEditors.event(listener)
 	}
 
+	// The CLI has no editor viewport, so visible ranges never change. Without
+	// this stub every file write logged "onDidChangeTextEditorVisibleRanges is
+	// not a function" from the extension's diff view.
+	onDidChangeTextEditorVisibleRanges(_listener: (event: unknown) => void): Disposable {
+		return { dispose: () => {} }
+	}
+
 	// Terminal event handlers
 	onDidCloseTerminal(_listener: (terminal: Terminal) => void): Disposable {
 		return { dispose: () => {} }

@@ -281,17 +281,34 @@ export class ExtensionHost extends EventEmitter implements ExtensionHostInterfac
 	 * Wire up client events to managers.
 	 * The client emits events, managers handle them.
 	 */
+	/**
+	 * MaxQ: in non-interactive mode, hand every complete approval ask to the
+	 * AskDispatcher as soon as it arrives. `waitingForInput` fires only on a
+	 * transition INTO the waiting state, so a second approval ask that arrives
+	 * while already waiting (two file reads in one turn, say) never reached the
+	 * dispatcher: it went unanswered and the task hung. The dispatcher ignores
+	 * asks it has already handled and leaves auto-answered ones alone, so
+	 * receiving an ask here and again via `waitingForInput` is harmless.
+	 */
+	private routeApprovalAsk(msg: ClineMessage): void {
+		if (!this.options.nonInteractive || msg.type !== "ask" || msg.partial) return
+		if (msg.ask !== "tool" && msg.ask !== "command" && msg.ask !== "use_mcp_server") return
+		void this.askDispatcher.handleAsk(msg)
+	}
+
 	private setupClientEventHandlers(): void {
 		// Handle new messages - delegate to OutputManager.
 		this.client.on("message", (msg: ClineMessage) => {
 			this.logMessageDebug(msg, "new")
 			this.outputManager.outputMessage(msg)
+			this.routeApprovalAsk(msg)
 		})
 
 		// Handle message updates - delegate to OutputManager.
 		this.client.on("messageUpdated", (msg: ClineMessage) => {
 			this.logMessageDebug(msg, "updated")
 			this.outputManager.outputMessage(msg)
+			this.routeApprovalAsk(msg)
 		})
 
 		// Handle waiting for input - delegate to AskDispatcher.
