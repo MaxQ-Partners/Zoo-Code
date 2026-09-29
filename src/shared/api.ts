@@ -115,6 +115,12 @@ export const getModelMaxOutputTokens = ({
 	format?: "anthropic" | "openai" | "gemini" | "openrouter"
 }): number | undefined => {
 	if (shouldUseReasoningBudget({ model, settings })) {
+		// Adaptive-thinking models spend one output budget on thinking and the answer
+		// together, so a fixed 16K cap can be used up by thinking alone and the turn
+		// comes back with no answer. Give them the model's own output limit.
+		if (model.supportsReasoningBinary && model.maxTokens) {
+			return settings?.modelMaxTokens || model.maxTokens
+		}
 		return settings?.modelMaxTokens || DEFAULT_HYBRID_REASONING_MODEL_MAX_TOKENS
 	}
 

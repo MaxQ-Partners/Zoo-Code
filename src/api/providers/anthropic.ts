@@ -39,6 +39,16 @@ const ANTHROPIC_MODEL_ID_LOWER_TO_ORIGINAL = Object.fromEntries(
 	(Object.keys(anthropicModels) as AnthropicModelId[]).map((id) => [id.toLowerCase(), id]),
 )
 
+const ANTHROPIC_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const
+
+// The effort chosen in settings (or --reasoning-effort), if the API accepts it.
+// Anything else ("minimal", "none", unset) leaves the API default in place.
+function anthropicEffort(effort: unknown): (typeof ANTHROPIC_EFFORTS)[number] | undefined {
+	return (ANTHROPIC_EFFORTS as readonly unknown[]).includes(effort)
+		? (effort as (typeof ANTHROPIC_EFFORTS)[number])
+		: undefined
+}
+
 export class AnthropicHandler extends BaseProvider implements SingleCompletionHandler {
 	private options: ApiHandlerOptions
 	private client: Anthropic
@@ -73,11 +83,17 @@ export class AnthropicHandler extends BaseProvider implements SingleCompletionHa
 			info,
 			reasoningBudget,
 		} = this.getModel()
-		const thinking = getAnthropicProviderReasoning({
+		const reasoning = getAnthropicProviderReasoning({
 			model: info,
 			reasoningBudget,
 			settings: this.options,
 		})
+		// Adaptive-thinking models (Opus 4.7+, Sonnet 5.x, Opus 5.x, Fable 5) take no
+		// budget: depth comes from output_config.effort, and the thinking text only
+		// streams back with display "summarized". Mirrors the Bedrock path.
+		const adaptive = reasoning?.type === "adaptive"
+		const thinking = adaptive ? { type: "adaptive" as const, display: "summarized" as const } : reasoning
+		const effort = adaptive ? anthropicEffort(this.options.reasoningEffort) : undefined
 
 		// Filter out non-Anthropic blocks (reasoning, thoughtSignature, etc.) before sending to the API
 		const sanitizedMessages = filterNonAnthropicBlocks(messages)
@@ -114,6 +130,7 @@ export class AnthropicHandler extends BaseProvider implements SingleCompletionHa
 		}
 
 		switch (modelId) {
+			case "claude-sonnet-5-5":
 			case "claude-sonnet-5":
 			case "claude-sonnet-4-6":
 			case "claude-sonnet-4-5":
@@ -158,6 +175,7 @@ export class AnthropicHandler extends BaseProvider implements SingleCompletionHa
 						max_tokens: maxTokens ?? ANTHROPIC_DEFAULT_MAX_TOKENS,
 						temperature,
 						thinking,
+						...(effort && { output_config: { effort } }),
 						// Setting cache breakpoint for system prompt so new tasks can reuse it.
 						system: [{ text: systemPrompt, type: "text", cache_control: cacheControl }],
 						messages: sanitizedMessages.map((message, index) => {
@@ -188,6 +206,7 @@ export class AnthropicHandler extends BaseProvider implements SingleCompletionHa
 
 							// Then check for models that support prompt caching
 							switch (modelId) {
+								case "claude-sonnet-5-5":
 								case "claude-sonnet-5":
 								case "claude-sonnet-4-6":
 								case "claude-sonnet-4-5":
@@ -235,6 +254,7 @@ export class AnthropicHandler extends BaseProvider implements SingleCompletionHa
 						max_tokens: maxTokens ?? ANTHROPIC_DEFAULT_MAX_TOKENS,
 						temperature,
 						thinking,
+						...(effort && { output_config: { effort } }),
 						system: [{ text: systemPrompt, type: "text" }],
 						messages: sanitizedMessages,
 						stream: true,

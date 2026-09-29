@@ -29,6 +29,22 @@ export const anthropicModels = {
 			},
 		],
 	},
+	"claude-sonnet-5-5": {
+		maxTokens: 128_000, // Overridden to 8k if `enableReasoningEffort` is false.
+		contextWindow: 1_000_000, // 1M context window native (no beta header required)
+		supportsImages: true,
+		supportsPromptCache: true,
+		inputPrice: 2.0, // $2 per million input tokens (same as Sonnet 5)
+		outputPrice: 10.0, // $10 per million output tokens
+		cacheWritesPrice: 2.5, // $2.50 per million tokens
+		cacheReadsPrice: 0.2, // $0.20 per million tokens
+		// Adaptive thinking only (thinking.type "enabled" returns a 400); depth is
+		// set with output_config.effort (low | medium | high | xhigh | max).
+		supportsReasoningBudget: true,
+		supportsReasoningBinary: true,
+		supportsTemperature: false,
+		description: "Claude Sonnet 5.5 is near Opus 5.5 quality at Sonnet pricing, with fewer tool calls per task.",
+	},
 	"claude-sonnet-5": {
 		maxTokens: 128_000, // Overridden to 8k if `enableReasoningEffort` is false.
 		contextWindow: 1_000_000, // 1M context window native (no beta header required)

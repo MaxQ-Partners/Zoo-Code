@@ -502,6 +502,27 @@ describe("getModelMaxOutputTokens", () => {
 
 		expect(getModelMaxOutputTokens({ modelId: "test", model, settings })).toBe(16_384)
 	})
+
+	test("should use the model's own output limit for adaptive-thinking models", () => {
+		const model: ModelInfo = {
+			contextWindow: 1_000_000,
+			supportsPromptCache: true,
+			supportsReasoningBudget: true,
+			supportsReasoningBinary: true,
+			maxTokens: 128_000,
+		}
+
+		expect(
+			getModelMaxOutputTokens({ modelId: "claude-sonnet-5-5", model, settings: { enableReasoningEffort: true } }),
+		).toBe(128_000)
+		expect(
+			getModelMaxOutputTokens({
+				modelId: "claude-sonnet-5-5",
+				model,
+				settings: { enableReasoningEffort: true, modelMaxTokens: 32_000 },
+			}),
+		).toBe(32_000)
+	})
 })
 
 describe("shouldUseReasoningBudget", () => {

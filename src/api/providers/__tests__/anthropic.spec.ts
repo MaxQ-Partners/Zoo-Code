@@ -247,8 +247,70 @@ describe("AnthropicHandler", () => {
 			await collectStream(stream)
 
 			const requestBody = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[0]
-			expect(requestBody?.thinking).toEqual({ type: "adaptive" })
-			expect(requestBody?.max_tokens).toBe(16384)
+			expect(requestBody?.thinking).toEqual({ type: "adaptive", display: "summarized" })
+			expect(requestBody?.max_tokens).toBe(128_000)
+		})
+
+		it("should pass the reasoning effort as output_config.effort for adaptive models", async () => {
+			const cases: Array<[ApiHandlerOptions["reasoningEffort"], { effort: string } | undefined]> = [
+				["xhigh", { effort: "xhigh" }],
+				["medium", { effort: "medium" }],
+				["minimal", undefined],
+				[undefined, undefined],
+			]
+			for (const [reasoningEffort, expected] of cases) {
+				const handler = new AnthropicHandler({
+					apiKey: "test-api-key",
+					apiModelId: "claude-opus-4-7",
+					enableReasoningEffort: true,
+					reasoningEffort,
+				})
+				await collectStream(
+					handler.createMessage(systemPrompt, [
+						{ role: "user", content: [{ type: "text" as const, text: "Hello" }] },
+					]),
+				)
+				const requestBody = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[0]
+				expect(requestBody?.output_config).toEqual(expected)
+			}
+		})
+
+		it("should not send output_config for budget-thinking models", async () => {
+			const handler = new AnthropicHandler({
+				apiKey: "test-api-key",
+				apiModelId: "claude-sonnet-4-6",
+				enableReasoningEffort: true,
+				reasoningEffort: "high",
+			})
+			await collectStream(
+				handler.createMessage(systemPrompt, [
+					{ role: "user", content: [{ type: "text" as const, text: "Hello" }] },
+				]),
+			)
+			const requestBody = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[0]
+			expect(requestBody?.output_config).toBeUndefined()
+		})
+
+		it("should cache, think adaptively and use the full output limit for Claude Sonnet 5.5", async () => {
+			const handler = new AnthropicHandler({
+				apiKey: "test-api-key",
+				apiModelId: "claude-sonnet-5-5",
+				enableReasoningEffort: true,
+				reasoningEffort: "medium",
+			})
+			await collectStream(
+				handler.createMessage(systemPrompt, [
+					{ role: "user", content: [{ type: "text" as const, text: "Hello" }] },
+				]),
+			)
+			const requestBody = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[0]
+			const requestOptions = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[1]
+			expect(requestBody?.thinking).toEqual({ type: "adaptive", display: "summarized" })
+			expect(requestBody?.output_config).toEqual({ effort: "medium" })
+			expect(requestBody?.max_tokens).toBe(128_000)
+			expect(requestBody?.temperature).toBeUndefined()
+			expect(requestBody?.system?.[0]?.cache_control).toEqual({ type: "ephemeral" })
+			expect(requestOptions?.headers?.["anthropic-beta"]).toContain("prompt-caching-2024-07-31")
 		})
 
 		it("should omit thinking for Claude Opus 4.7 when reasoning is disabled", async () => {
@@ -290,7 +352,7 @@ describe("AnthropicHandler", () => {
 			await collectStream(stream)
 
 			const requestBody = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[0]
-			expect(requestBody?.thinking).toEqual({ type: "adaptive" })
+			expect(requestBody?.thinking).toEqual({ type: "adaptive", display: "summarized" })
 			expect(requestBody?.max_tokens).toBe(32768)
 		})
 
@@ -334,8 +396,8 @@ describe("AnthropicHandler", () => {
 			await collectStream(stream)
 
 			const requestBody = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[0]
-			expect(requestBody?.thinking).toEqual({ type: "adaptive" })
-			expect(requestBody?.max_tokens).toBe(16384)
+			expect(requestBody?.thinking).toEqual({ type: "adaptive", display: "summarized" })
+			expect(requestBody?.max_tokens).toBe(128_000)
 		})
 
 		it("should omit thinking for Claude Opus 4.8 when reasoning is disabled", async () => {
@@ -377,7 +439,7 @@ describe("AnthropicHandler", () => {
 			await collectStream(stream)
 
 			const requestBody = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[0]
-			expect(requestBody?.thinking).toEqual({ type: "adaptive" })
+			expect(requestBody?.thinking).toEqual({ type: "adaptive", display: "summarized" })
 			expect(requestBody?.max_tokens).toBe(32768)
 		})
 
@@ -400,7 +462,7 @@ describe("AnthropicHandler", () => {
 
 			const requestBody = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[0]
 			const requestOptions = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[1]
-			expect(requestBody?.thinking).toEqual({ type: "adaptive" })
+			expect(requestBody?.thinking).toEqual({ type: "adaptive", display: "summarized" })
 			expect(requestBody?.temperature).toBeUndefined()
 			expect(requestBody?.max_tokens).toBe(32768)
 			expect(requestOptions?.headers?.["anthropic-beta"]).toContain("prompt-caching-2024-07-31")
@@ -425,7 +487,7 @@ describe("AnthropicHandler", () => {
 
 			const requestBody = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[0]
 			const requestOptions = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[1]
-			expect(requestBody?.thinking).toEqual({ type: "adaptive" })
+			expect(requestBody?.thinking).toEqual({ type: "adaptive", display: "summarized" })
 			expect(requestBody?.temperature).toBeUndefined()
 			expect(requestBody?.max_tokens).toBe(32768)
 			expect(requestOptions?.headers?.["anthropic-beta"]).toContain("prompt-caching-2024-07-31")
@@ -450,7 +512,7 @@ describe("AnthropicHandler", () => {
 
 			const requestBody = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[0]
 			const requestOptions = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[1]
-			expect(requestBody?.thinking).toEqual({ type: "adaptive" })
+			expect(requestBody?.thinking).toEqual({ type: "adaptive", display: "summarized" })
 			expect(requestBody?.temperature).toBeUndefined()
 			expect(requestBody?.max_tokens).toBe(32768)
 			expect(requestOptions?.headers?.["anthropic-beta"]).toContain("prompt-caching-2024-07-31")
@@ -475,7 +537,7 @@ describe("AnthropicHandler", () => {
 
 			const requestBody = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[0]
 			const requestOptions = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[1]
-			expect(requestBody?.thinking).toEqual({ type: "adaptive" })
+			expect(requestBody?.thinking).toEqual({ type: "adaptive", display: "summarized" })
 			expect(requestBody?.temperature).toBeUndefined()
 			expect(requestBody?.max_tokens).toBe(32768)
 			expect(requestOptions?.headers?.["anthropic-beta"]).toContain("prompt-caching-2024-07-31")
@@ -500,7 +562,7 @@ describe("AnthropicHandler", () => {
 
 			const requestBody = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[0]
 			const requestOptions = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[1]
-			expect(requestBody?.thinking).toEqual({ type: "adaptive" })
+			expect(requestBody?.thinking).toEqual({ type: "adaptive", display: "summarized" })
 			expect(requestBody?.temperature).toBeUndefined()
 			expect(requestBody?.max_tokens).toBe(32768)
 			expect(requestOptions?.headers?.["anthropic-beta"]).toContain("prompt-caching-2024-07-31")
@@ -524,7 +586,7 @@ describe("AnthropicHandler", () => {
 
 			const requestBody = mockCreate.mock.calls[mockCreate.mock.calls.length - 1]?.[0]
 			expect(requestBody?.model).toBe("claude-sonnet-5-bf")
-			expect(requestBody?.thinking).toEqual({ type: "adaptive" })
+			expect(requestBody?.thinking).toEqual({ type: "adaptive", display: "summarized" })
 		})
 	})
 
