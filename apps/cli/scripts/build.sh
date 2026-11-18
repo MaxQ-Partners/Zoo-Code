@@ -141,28 +141,12 @@ create_tarball() {
     info "Copying CLI files..."
     cp -r "$CLI_DIR/dist/"* "$RELEASE_DIR/lib/"
 
-    # Create package.json for npm install
-    info "Creating package.json..."
-    node -e "
-      const pkg = require('$CLI_DIR/package.json');
-      const newPkg = {
-        name: '@roo-code/cli',
-        version: '$VERSION',
-        type: 'module',
-        dependencies: {
-          '@inkjs/ui': pkg.dependencies['@inkjs/ui'],
-          '@trpc/client': pkg.dependencies['@trpc/client'],
-          'commander': pkg.dependencies.commander,
-          'fuzzysort': pkg.dependencies.fuzzysort,
-          'ink': pkg.dependencies.ink,
-          'p-wait-for': pkg.dependencies['p-wait-for'],
-          'react': pkg.dependencies.react,
-          'superjson': pkg.dependencies.superjson,
-          'zustand': pkg.dependencies.zustand
-        }
-      };
-      console.log(JSON.stringify(newPkg, null, 2));
-    " > "$RELEASE_DIR/package.json"
+    # Create package.json and its lockfile for install.sh's npm install
+    # (scripts/release-lock.mjs owns the runtime package list and the lock;
+    # this fails if apps/cli/release-lock.json is out of date)
+    info "Creating package.json and package-lock.json..."
+    node "$CLI_DIR/scripts/release-lock.mjs" package "$VERSION" > "$RELEASE_DIR/package.json"
+    node "$CLI_DIR/scripts/release-lock.mjs" apply "$RELEASE_DIR"
 
     # Copy extension bundle
     info "Copying extension bundle..."

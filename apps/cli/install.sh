@@ -223,15 +223,23 @@ Available at: https://github.com/$REPO/releases"
         cp "$INSTALL_DIR/node_modules/@vscode/ripgrep/bin/rg" "$RIPGREP_BIN"
     fi
     
-    # Install npm dependencies
+    # Install npm dependencies: exactly the locked versions when the release
+    # carries a lockfile (scripts/release-lock.mjs), with no install scripts;
+    # otherwise the newest in range, as releases without one always did.
     info "Installing dependencies..."
     cd "$INSTALL_DIR"
-    npm install --production --silent 2>/dev/null || {
-        warn "npm install failed, trying with --legacy-peer-deps..."
-        npm install --production --legacy-peer-deps --silent 2>/dev/null || {
-            error "Failed to install dependencies. Make sure npm is available."
+    if [ -f package-lock.json ]; then
+        npm ci --omit=dev --ignore-scripts --no-audit --no-fund --silent || {
+            error "Failed to install the locked dependencies (package-lock.json)."
         }
-    }
+    else
+        npm install --production --silent 2>/dev/null || {
+            warn "npm install failed, trying with --legacy-peer-deps..."
+            npm install --production --legacy-peer-deps --silent 2>/dev/null || {
+                error "Failed to install dependencies. Make sure npm is available."
+            }
+        }
+    fi
     cd - > /dev/null
     
     # Restore ripgrep binary after npm install
