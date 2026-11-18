@@ -23,6 +23,12 @@ export class RooProtectedController {
 		".rooprotected", // For future use
 		"AGENTS.md",
 		"AGENT.md",
+		// Also read as standing instructions (custom-instructions.ts) and as
+		// skills (SkillsManager): an agent that could write them could leave
+		// itself instructions for every later task in the workspace.
+		"AGENTS.local.md",
+		"AGENT.local.md",
+		".agents/**",
 	]
 
 	constructor(cwd: string) {

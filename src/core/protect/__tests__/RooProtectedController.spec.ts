@@ -55,6 +55,13 @@ describe("RooProtectedController", () => {
 			expect(controller.isWriteProtected("AGENTS.md")).toBe(true)
 		})
 
+		it("should protect AGENTS.local.md and the .agents folder (instructions and skills the agent reads)", () => {
+			expect(controller.isWriteProtected("AGENTS.local.md")).toBe(true)
+			expect(controller.isWriteProtected("AGENT.local.md")).toBe(true)
+			expect(controller.isWriteProtected(".agents/skills/x/SKILL.md")).toBe(true)
+			expect(controller.isWriteProtected("notes/AGENTS-plan.md")).toBe(false)
+		})
+
 		it("should protect AGENT.md file", () => {
 			expect(controller.isWriteProtected("AGENT.md")).toBe(true)
 		})
@@ -165,6 +172,9 @@ describe("RooProtectedController", () => {
 				".rooprotected",
 				"AGENTS.md",
 				"AGENT.md",
+				"AGENTS.local.md",
+				"AGENT.local.md",
+				".agents/**",
 			])
 		})
 	})
